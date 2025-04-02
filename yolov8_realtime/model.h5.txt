@@ -1,0 +1,48 @@
+import cv2
+import numpy as np
+from tensorflow.keras.models import load_model
+
+# Load the pre-trained model
+model = load_model('model.h5')  # Replace 'your_model.h5' with your model file path
+
+# Define the input shape expected by the model
+input_shape = (256, 192)  # Example shape, replace with your model's input shape
+
+# Function to process each frame of the video
+def process_frame(frame):
+    # Preprocess the frame (resize, normalize, etc.) to match the input shape expected by the model
+    # Example:
+    processed_frame = cv2.resize(frame, input_shape, interpolation=cv2.INTER_LINEAR)
+    processed_frame = processed_frame / 255.0  # Normalize pixel values
+    processed_frame = np.expand_dims(processed_frame, axis=0)  # Add batch dimension
+    # Perform inference using the model
+    output = model.predict(processed_frame)
+    # Post-process the output if needed
+    # Example:
+    # output = post_process(output)
+    return output
+
+# Open the video file
+video_capture = cv2.VideoCapture('benha_road.mp4')  # Replace 'your_video.mp4' with your video file path
+
+# Get the video's frame width, height, and frames per second (fps)
+frame_width = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+frame_height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+fps = int(video_capture.get(cv2.CAP_PROP_FPS))
+
+# Define the codec and create VideoWriter object
+fourcc = cv2.VideoWriter_fourcc(*'XVID')  # Example codec, change as needed
+output_video = cv2.VideoWriter('seg_out.avi', fourcc, fps, (frame_width, frame_height))
+
+# Process each frame of the video
+while True:
+    ret, frame = video_capture.read()
+    if not ret:
+        break
+    processed_frame = process_frame(frame)
+    # Write the processed frame to the output video
+    output_video.write(processed_frame)
+
+# Release video capture and writer
+video_capture.release()
+output_video.release()

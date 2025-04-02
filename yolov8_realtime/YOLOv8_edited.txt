@@ -1,0 +1,51 @@
+import cv2
+from ultralytics import YOLO
+
+video_path = 'bump4.mp4'
+
+# Increase the value of img_size for faster processing
+model = YOLO('best2.pt')
+
+cap = cv2.VideoCapture(video_path)
+
+frame_num = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+video_writer = cv2.VideoWriter('video4.mp4',fourcc,30,(frame_width,frame_height))
+
+widths = []
+min_width = 700
+while cap.isOpened():
+    success, frame = cap.read()
+    if success:
+        results = model.predict(frame, conf=0.5, iou=0.4)
+
+        # Initialize a flag to check if a bump is detected
+        bump_detected = False
+
+        for result in results:
+            boxes = result.boxes
+            for pred in boxes.xywh:
+                x, y, w, h = pred
+                widths.append(w)
+                if w >= min_width:
+                    bump_detected = True
+                    break
+
+        # If a bump is detected, visualize the annotated frame
+        if bump_detected:
+            annotated_frame = results[0].plot()
+            video_writer.write(annotated_frame)
+        else:
+            # If no bump is detected, write the original frame
+            video_writer.write(frame)
+
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
+    else:
+        break
+cap.release()
+
+# Destroy all OpenCV windows
+cv2.destroyAllWindows()

@@ -1,0 +1,56 @@
+import cv2
+import torch
+from torchvision import transforms
+from pathlib import Path
+import ultralytics
+
+# Load YOLOv5 model
+weights_path = 'speed_bump.pt'
+model = torch.hub.load('ultralytics/yolov5', 'custom', path='speed_bump.pt', force_reload=True)
+
+# Set device to CUDA if available, otherwise use CPU
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = model.to(device).eval()
+
+# Open video capture
+video_path = 'bump1.mp4'
+cap = cv2.VideoCapture(video_path)
+
+# Get video properties
+fps = int(cap.get(cv2.CAP_PROP_FPS))
+frame_size = (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
+
+# Create VideoWriter object
+output_path = 'output_video.mp4'
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+out = cv2.VideoWriter(output_path, fourcc, fps, frame_size)
+
+# Process video frames
+with torch.no_grad():
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        # Convert BGR to RGB and normalize
+        img = transforms.ToTensor()(frame).unsqueeze(0).to(device)
+
+        # Make prediction
+        results = model(img)
+
+        # Render annotated frame
+        annotated_frame = results.render()[0].cpu().numpy()
+
+        # Write the frame to the output video
+        out.write(annotated_frame)
+
+        # Break the loop if 'q' key is pressed
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+# Release the video capture and writer objects
+cap.release()
+out.release()
+
+# Destroy all OpenCV windows
+cv2.destroyAllWindows()
